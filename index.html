@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>HookForge — Generador de hooks para TikTok</title>
+<style>
+  :root{--bg:#0f1724;--card:#0b1220;--accent:#f59e0b;color-scheme:dark}
+  *{box-sizing:border-box;font-family:Inter,system-ui,Arial,Helvetica,sans-serif}
+  body{margin:0;background:linear-gradient(180deg,var(--bg),#071024);color:#e6eef8;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+  .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:12px;padding:20px;max-width:900px;width:100%;box-shadow:0 8px 30px rgba(2,6,23,0.7)}
+  h1{margin:0 0 8px;font-size:20px}
+  p.lead{margin:0 0 16px;color:#c9d7ef90}
+  .row{display:flex;gap:12px;flex-wrap:wrap}
+  input,select,textarea{background:transparent;border:1px solid #243447;padding:10px;border-radius:8px;color:inherit;width:100%}
+  textarea{min-height:100px;resize:vertical}
+  .controls{display:grid;grid-template-columns:1fr auto;gap:8px;margin-bottom:12px}
+  button{background:var(--accent);border:none;padding:10px 14px;border-radius:10px;color:#072322;font-weight:700;cursor:pointer}
+  button.ghost{background:transparent;border:1px solid #2b4152;color:#d9f3ff}
+  .list{margin-top:12px;display:grid;gap:8px}
+  .item{background:#071126;padding:12px;border-radius:8px;border:1px solid #102535;display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+  .item pre{margin:0;font-family:inherit;white-space:pre-wrap;flex:1}
+  .small{font-size:12px;color:#9fb7d6}
+  .meta{display:flex;gap:8px}
+  footer{margin-top:14px;color:#8faece;font-size:13px;display:flex;justify-content:space-between;align-items:center}
+  .affiliate{background:#071126;padding:8px;border-radius:8px;border:1px dashed #214a5f}
+  .copybtn{background:transparent;border:1px solid #183b4a;color:#bfe7ff;padding:6px 8px;border-radius:8px;cursor:pointer}
+  @media(max-width:640px){.controls{grid-template-columns:1fr} .row{flex-direction:column}}
+</style>
+</head>
+<body>
+  <main class="card" role="main">
+    <h1>HookForge — Generador de hooks para TikTok</h1>
+    <p class="lead">Escribe un tema o una anécdota y obtén 10 hooks/captions listos para publicar. Copia rápido y publica.</p>
+
+    <div class="controls">
+      <input id="topic" placeholder="Ej: keto, anécdota en el súper, producto X..." />
+      <button id="generate">Generar 10 hooks</button>
+    </div>
+
+    <div class="row" style="margin-bottom:8px">
+      <select id="tone" style="max-width:220px">
+        <option value="curioso">Curioso</option>
+        <option value="divertido">Divertido</option>
+        <option value="impactante">Impactante</option>
+        <option value="educativo">Educativo</option>
+      </select>
+      <button id="copyAll" class="ghost">Copiar todo</button>
+      <button id="downloadTxt" class="ghost">Descargar .txt</button>
+    </div>
+
+    <div id="results" class="list" aria-live="polite"></div>
+
+    <footer>
+      <div class="affiliate">
+        Tu enlace de afiliado: <strong id="affArea">[Añade tu link aquí]</strong>
+      </div>
+      <div>
+        <button id="donate" class="ghost">Donar (Ko-fi / PayPal)</button>
+      </div>
+    </footer>
+  </main>
+
+<script>
+/* HookForge v1 - lógica simple de plantillas y aleatoriedad */
+const templates = {
+  curioso: [
+    "No vas a creer lo que pasó cuando probé {topic} por primera vez...",
+    "Probé {topic} durante 7 días y esto fue lo que pasó ⬇️",
+    "Lo que nadie te dice sobre {topic} en 15 segundos",
+    "{topic}: 3 cosas que cambiaron TODO para mí",
+    "Si usas {topic} y no haces esto, estás perdiendo tiempo"
+  ],
+  divertido: [
+    "Yo en el súper cuando veo {topic} en oferta 😂",
+    "Cuando intenté {topic} y terminé así...",
+    "Expectativa vs Realidad: {topic} edition",
+    "Historias reales: me encontré con {topic} y no lo esperaba",
+    "Si trabajas en el súper y ves {topic}... esto pasa"
+  ],
+  impactante: [
+    "{topic} casi arruina mi día — no lo cometas",
+    "Advertencia: {topic} puede hacer esto si lo usas mal",
+    "Jamás pensé que {topic} podría hacerme sentir así",
+    "Esto es lo que nadie te cuenta sobre {topic}",
+    "Top secretos sobre {topic} que los expertos ocultan"
+  ],
+  educativo: [
+    "3 datos rápidos sobre {topic} que deberías saber",
+    "Cómo usar {topic} correctamente en 3 pasos",
+    "Guía rápida: {topic} para principiantes",
+    "Errores comunes al usar {topic} y cómo evitarlos",
+    "¿Qué es {topic}? Te lo explico en 30s"
+  ]
+};
+
+function rnd(arr){ return arr[Math.floor(Math.random()*arr.length)] }
+
+function makeHook(topic, tone){
+  const t = rnd(templates[tone] || templates.curioso);
+  // reglas rápidas: insertar número, emojis, CTA
+  const number = Math.random() < 0.5 ? ` ${Math.floor(Math.random()*9)+2}` : '';
+  const emoji = Math.random() < 0.6 ? (["🔥","😅","⚠️","🤯","✅","💡"][Math.floor(Math.random()*6)]) : '';
+  let text = t.replace(/{topic}/g, topic || "esto");
+  // añadir apertura curiosa
+  if(Math.random() < 0.4) text = (["Atención:","Ojo:","Spoiler:","Dato:"][Math.floor(Math.random()*4)]) + " " + text;
+  text = `${emoji} ${text}`.trim();
+  // añadir CTA corto
+  if(Math.random() < 0.5) text += " — ¿Lo probarías? 🔽";
+  // añadir hashtags relevantes (simple heurística)
+  const tags = topic ? ` #${topic.replace(/\s+/g,'').toLowerCase()} #tips` : " #tips";
+  return text + " " + tags;
+}
+
+function generateAll(){
+  const topicInput = document.getElementById('topic').value.trim();
+  const tone = document.getElementById('tone').value;
+  const results = document.getElementById('results');
+  results.innerHTML = '';
+  const topic = topicInput || "esto";
+  for(let i=0;i<10;i++){
+    const hook = makeHook(topic, tone);
+    const div = document.createElement('div');
+    div.className='item';
+    const pre = document.createElement('pre');
+    pre.textContent = hook;
+    const meta = document.createElement('div');
+    meta.className='meta';
+    const copy = document.createElement('button');
+    copy.className='copybtn';
+    copy.textContent='Copiar';
+    copy.addEventListener('click', ()=> {
+      navigator.clipboard.writeText(hook).then(()=> {
+        copy.textContent='Copiado!';
+        setTimeout(()=>copy.textContent='Copiar',900);
+      });
+    });
+    meta.appendChild(copy);
+    div.appendChild(pre);
+    div.appendChild(meta);
+    results.appendChild(div);
+  }
+}
+
+document.getElementById('generate').addEventListener('click', generateAll);
+document.getElementById('copyAll').addEventListener('click', ()=>{
+  const text = Array.from(document.querySelectorAll('#results pre')).map(p=>p.textContent).join("\n\n");
+  if(!text) return alert('Genera primero los hooks.');
+  navigator.clipboard.writeText(text).then(()=> alert('Todos los hooks copiados al portapapeles.'));
+});
+document.getElementById('downloadTxt').addEventListener('click', ()=>{
+  const lines = Array.from(document.querySelectorAll('#results pre')).map(p=>p.textContent);
+  if(lines.length===0) return alert('Genera primero los hooks.');
+  const blob = new Blob([lines.join("\n\n")], {type:'text/plain;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'hooks-tiktok.txt';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+});
+
+/* Set affiliate area and donate button: modifícalos para tu links */
+document.getElementById('affArea').textContent = 'Añade tu enlace de Digistore24 en el repo README';
+document.getElementById('donate').addEventListener('click', ()=>{
+  window.open('https://ko-fi.com/tu_usuario_o_paypal', '_blank');
+});
+
+/* Auto-generate sample on load */
+generateAll();
+</script>
+</body>
+</html>
